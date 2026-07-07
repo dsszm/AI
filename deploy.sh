@@ -10,13 +10,20 @@ DOMAIN="dsszm.cn"
 
 echo ""
 echo "[1/7] 检查系统环境..."
-if command -v yum &> /dev/null; then
+if grep -q "alinux" /etc/os-release 2>/dev/null; then
+    OS_TYPE="alinux"
+    PKG_MANAGER="yum"
+    echo "  检测到阿里云 Alinux 系统"
+elif command -v yum &> /dev/null; then
+    OS_TYPE="centos"
     PKG_MANAGER="yum"
     echo "  检测到 CentOS/RHEL 系统"
 elif command -v apt &> /dev/null; then
+    OS_TYPE="ubuntu"
     PKG_MANAGER="apt"
     echo "  检测到 Ubuntu/Debian 系统"
 elif command -v apk &> /dev/null; then
+    OS_TYPE="alpine"
     PKG_MANAGER="apk"
     echo "  检测到 Alpine 系统"
 else
@@ -38,7 +45,19 @@ fi
 echo ""
 echo "[3/7] 安装 Docker..."
 if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com | bash
+    if [ "$OS_TYPE" = "alinux" ]; then
+        echo "  使用阿里云源安装 Docker..."
+        yum install -y docker-ce docker-ce-cli containerd.io --enablerepo=docker-ce-stable
+    elif [ "$OS_TYPE" = "centos" ]; then
+        echo "  使用官方脚本安装 Docker..."
+        curl -fsSL https://get.docker.com | bash
+    elif [ "$OS_TYPE" = "ubuntu" ]; then
+        echo "  使用官方脚本安装 Docker..."
+        curl -fsSL https://get.docker.com | bash
+    elif [ "$OS_TYPE" = "alpine" ]; then
+        echo "  安装 Docker..."
+        apk add docker
+    fi
     systemctl start docker
     systemctl enable docker
     echo "  Docker 安装完成"
@@ -50,6 +69,7 @@ echo ""
 echo "[4/7] 安装 Docker Compose..."
 if ! command -v docker-compose &> /dev/null; then
     if ! docker compose version &> /dev/null; then
+        echo "  下载 Docker Compose..."
         curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
         echo "  Docker Compose 安装完成"

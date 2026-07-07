@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  console-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: console-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./api/data:/app/api/data
+      - ./api/data/uploads:/app/api/data/uploads
+    environment:
+      - NODE_ENV=production
+    networks:
+      - console-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: console-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./dist:/usr/share/nginx/html
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - console-app
+    networks:
+      - console-network
+
+networks:
+  console-network:
+    driver: bridge

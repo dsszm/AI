@@ -15,6 +15,7 @@ import keysRoutes from './routes/keys.js';
 import galleryRoutes from './routes/gallery.js';
 import categoriesRoutes from './routes/categories.js';
 import usersRoutes from './routes/users.js';
+import imageGenRoutes from './routes/imageGen.js';
 import { getDb } from './db/index.js';
 import { MODELS } from './config/models.js';
 import { verifyToken, type AuthedRequest } from './services/authService.js';
@@ -100,6 +101,7 @@ app.use('/api', requireAuth, keysRoutes);
 app.use('/api', requireAuth, galleryRoutes);
 app.use('/api', requireAuth, categoriesRoutes);
 app.use('/api', requireAuth, usersRoutes);
+app.use('/api', requireAuth, imageGenRoutes);
 
 /**
  * 错误处理中间件

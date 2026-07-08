@@ -3,6 +3,48 @@
  * 各模型实现统一流式接口,服务端聚合转发
  */
 import type { ModelId, ChatMessage } from '../../shared/types.js';
+import fs from 'fs';
+import path from 'path';
+
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'api/data/uploads');
+
+function resolveImageUrl(url: string): string {
+  if (url.startsWith('data:')) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/uploads/')) {
+    const fileName = url.replace('/uploads/', '');
+    const filePath = path.join(UPLOADS_DIR, fileName);
+    try {
+      if (fs.existsSync(filePath)) {
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+          '.bmp': 'image/bmp',
+        };
+        const mime = mimeMap[ext] || 'image/jpeg';
+        const data = fs.readFileSync(filePath).toString('base64');
+        return `data:${mime};base64,${data}`;
+      }
+    } catch {
+      // 读取失败,返回原URL
+    }
+  }
+  return url;
+}
+
+function resolveMessageImages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((m) => {
+    if (!m.images || m.images.length === 0) return m;
+    return {
+      ...m,
+      images: m.images.map(resolveImageUrl),
+    };
+  });
+}
 
 export interface StreamCallbacks {
   onToken: (token: string) => void;
@@ -21,43 +63,44 @@ export interface ProviderContext {
  */
 export async function streamChat(ctx: ProviderContext, cb: StreamCallbacks): Promise<void> {
   try {
-    switch (ctx.model) {
+    const resolvedCtx = { ...ctx, messages: resolveMessageImages(ctx.messages) };
+    switch (resolvedCtx.model) {
       case 'qwen':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
           model: 'qwen-plus',
         });
       case 'openai':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://api.openai.com/v1/chat/completions',
           model: 'gpt-4o-mini',
         });
       case 'deepseek':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://api.deepseek.com/v1/chat/completions',
           model: 'deepseek-chat',
         });
       case 'claude':
-        return streamClaude(ctx, cb);
+        return streamClaude(resolvedCtx, cb);
       case 'gemini':
-        return streamGemini(ctx, cb);
+        return streamGemini(resolvedCtx, cb);
       case 'glm':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
           model: 'glm-4-flash',
         });
       case 'moonshot':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://api.moonshot.cn/v1/chat/completions',
           model: 'moonshot-v1-8k',
         });
       case 'doubao':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
           model: 'doubao-pro-32k',
         });
       case 'spark':
-        return streamOpenAICompatible(ctx, cb, {
+        return streamOpenAICompatible(resolvedCtx, cb, {
           url: 'https://spark-api-open.xf-yun.com/v1/chat/completions',
           model: 'generalv3.5',
         });

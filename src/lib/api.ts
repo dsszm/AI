@@ -106,6 +106,18 @@ export const api = {
   deleteCategory: (id: string) =>
     request(`/categories/${id}`, { method: 'DELETE' }),
 
+  generateImage: (params: { model: string; prompt: string; size?: string; saveToGallery?: boolean; title?: string; categoryId?: string }) =>
+    request<{ url: string; galleryId?: string }>('/image-gen', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
+  getImageGenModels: () => request<string[]>('/image-gen/models'),
+  sendImageEmail: (imageUrl: string, email: string, prompt?: string) =>
+    request('/image-gen/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ imageUrl, email, prompt }),
+    }),
+
   getSessions: () => request<Array<{ id: string; title: string; created_at: string }>>('/chat/sessions'),
   getHistory: (sessionId: string) =>
     request<Array<{ id: string; role: 'user' | 'assistant'; content: string; model: string | null; images: string | null; created_at: string }>>(

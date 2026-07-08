@@ -6,6 +6,7 @@ import { Sparkles, User, AlertCircle, RotateCw } from 'lucide-react';
 import type { UIMessage } from '@/store/chatStore';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
+import GenImageActions from './GenImageActions';
 
 export default function ChatMessage({ message }: { message: UIMessage }) {
   const isUser = message.role === 'user';
@@ -35,33 +36,44 @@ export default function ChatMessage({ message }: { message: UIMessage }) {
         {message.images && message.images.length > 0 && (
           <div className={cn('flex flex-wrap gap-2 mb-2', isUser && 'justify-end')}>
             {message.images.map((url, i) => (
-              <img
-                key={i}
-                src={url}
-                alt={`附件 ${i + 1}`}
-                className="w-28 h-28 object-cover rounded-lg border border-white/[0.08]"
-                loading="lazy"
-              />
+              <div key={i} className="inline-block">
+                <img
+                  src={url}
+                  alt={`附件 ${i + 1}`}
+                  className={cn(
+                    'object-cover rounded-lg border border-white/[0.08]',
+                    message.isGenImage ? 'w-full max-w-sm h-auto' : 'w-28 h-28'
+                  )}
+                  loading="lazy"
+                />
+                {message.isGenImage && !isUser && (
+                  <GenImageActions
+                    imageUrl={url}
+                    prompt={message.genPrompt}
+                    savedToGallery={message.genSaved}
+                  />
+                )}
+              </div>
             ))}
           </div>
         )}
 
-        <div
-          className={cn(
-            'px-4 py-3 rounded-2xl text-sm leading-relaxed break-words',
-            isUser
-              ? 'bg-brand-accent text-white rounded-tr-sm shadow-glow'
-              : 'bg-surface-card text-slate-100 border border-white/[0.06] rounded-tl-sm'
-          )}
-        >
-          {message.content ? (
-            <span className={message.streaming ? 'typing-cursor' : ''}>{message.content}</span>
-          ) : message.streaming ? (
-            <ThinkingDots />
-          ) : (
-            <span className="text-slate-500 italic">(空回复)</span>
-          )}
-        </div>
+        {message.content || message.streaming ? (
+          <div
+            className={cn(
+              'px-4 py-3 rounded-2xl text-sm leading-relaxed break-words',
+              isUser
+                ? 'bg-brand-accent text-white rounded-tr-sm shadow-glow'
+                : 'bg-surface-card text-slate-100 border border-white/[0.06] rounded-tl-sm'
+            )}
+          >
+            {message.content ? (
+              <span className={message.streaming ? 'typing-cursor' : ''}>{message.content}</span>
+            ) : message.streaming ? (
+              <ThinkingDots />
+            ) : null}
+          </div>
+        ) : null}
 
         {/* 错误 + 重试 */}
         {message.error && (

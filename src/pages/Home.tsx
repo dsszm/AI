@@ -8,6 +8,7 @@ import { useChatStore } from '@/store/chatStore';
 import ModelSelector from '@/components/ModelSelector';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
+import ImageGenPanel from '@/components/ImageGenPanel';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
@@ -90,6 +91,9 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* 图像生成面板 */}
+        <ImageGenPanel />
 
         {/* 输入区 */}
         <ChatInput />

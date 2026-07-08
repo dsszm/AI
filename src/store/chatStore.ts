@@ -13,6 +13,9 @@ export interface UIMessage {
   images?: string[];
   streaming?: boolean;
   error?: string;
+  isGenImage?: boolean;
+  genPrompt?: string;
+  genSaved?: boolean;
 }
 
 export interface SessionInfo {
@@ -37,6 +40,7 @@ interface ChatState {
   selectSession: (id: string) => Promise<void>;
   newChat: () => void;
   sendMessage: (text: string, images?: string[]) => Promise<void>;
+  sendGenImageMessage: (prompt: string, imageUrl: string, saved: boolean) => void;
   retryLast: () => Promise<void>;
   clearError: () => void;
 }
@@ -93,6 +97,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   newChat: () => {
     set({ messages: [], currentSessionId: null, error: null });
+  },
+
+  sendGenImageMessage: (prompt, imageUrl, saved) => {
+    const state = get();
+    const userMsg: UIMessage = {
+      id: nextId(),
+      role: 'user',
+      content: `生成图片：${prompt}`,
+    };
+    const assistantMsg: UIMessage = {
+      id: nextId(),
+      role: 'assistant',
+      content: '',
+      model: state.currentModel,
+      images: [imageUrl],
+      isGenImage: true,
+      genPrompt: prompt,
+      genSaved: saved,
+    };
+    set({
+      messages: [...state.messages, userMsg, assistantMsg],
+    });
   },
 
   sendMessage: async (text, images) => {

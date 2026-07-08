@@ -10,6 +10,7 @@ import {
   ADMIN_EMAIL,
   type AuthedRequest,
 } from '../services/authService.js';
+import { isUserBanned, recordUserLogin } from './users.js';
 
 const router = Router();
 
@@ -31,6 +32,12 @@ router.post('/auth/send-code', async (req: Request, res: Response) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+
+  // 检查是否被封禁
+  if (isUserBanned(normalizedEmail)) {
+    res.status(403).json({ success: false, error: '账号已被封禁，请联系管理员' });
+    return;
+  }
 
   // 频率限制
   const lastSent = sendCooldown.get(normalizedEmail);
@@ -74,14 +81,25 @@ router.post('/auth/login', (req: Request, res: Response) => {
     return;
   }
 
-  const result = verifyCode(email, code);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 检查是否被封禁
+  if (isUserBanned(normalizedEmail)) {
+    res.status(403).json({ success: false, error: '账号已被封禁，请联系管理员' });
+    return;
+  }
+
+  const result = verifyCode(normalizedEmail, code);
   if (!result.valid) {
     res.status(400).json({ success: false, error: result.reason || '验证失败' });
     return;
   }
 
-  const token = createToken(email);
-  const user = buildUserInfo(email);
+  // 记录用户登录
+  recordUserLogin(normalizedEmail);
+
+  const token = createToken(normalizedEmail);
+  const user = buildUserInfo(normalizedEmail);
 
   res.json({
     success: true,

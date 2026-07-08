@@ -88,6 +88,19 @@ function initSchema(database: Database.Database) {
       last_request_at TEXT,
       FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS users (
+      email TEXT PRIMARY KEY,
+      nickname TEXT,
+      is_banned INTEGER DEFAULT 0,
+      ban_reason TEXT,
+      banned_at TEXT,
+      banned_by TEXT,
+      last_login_at TEXT,
+      login_count INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned);
   `);
 }
 

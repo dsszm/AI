@@ -224,6 +224,12 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 {
+                  label: '用户管理',
+                  icon: Users,
+                  color: 'bg-red-500/15 text-red-400 hover:bg-red-500/20',
+                  path: '/admin/users',
+                },
+                {
                   label: '添加图片',
                   icon: Images,
                   color: 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/20',
@@ -240,12 +246,6 @@ export default function AdminDashboard() {
                   icon: Shield,
                   color: 'bg-purple-500/15 text-purple-400 hover:bg-purple-500/20',
                   path: '/settings',
-                },
-                {
-                  label: '帮助中心',
-                  icon: Clock,
-                  color: 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/20',
-                  path: '/help',
                 },
               ].map((action) => (
                 <a

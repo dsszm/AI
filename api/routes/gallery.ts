@@ -12,7 +12,7 @@ import { requireAdmin } from '../middleware/admin.js';
 
 const router = Router();
 
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'api/data/uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -141,7 +141,8 @@ router.delete('/gallery/:id', requireAdmin, (req: Request, res: Response) => {
   }
 
   if (item.url.startsWith('/uploads/')) {
-    const filePath = path.join(process.cwd(), item.url);
+    const fileName = item.url.replace('/uploads/', '');
+    const filePath = path.join(uploadDir, fileName);
     fs.unlink(filePath, () => {});
   }
 

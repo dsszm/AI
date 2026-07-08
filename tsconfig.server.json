@@ -4,7 +4,7 @@
     "module": "ESNext",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "rootDir": "./api",
+    "rootDir": "./",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,6 +14,6 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["api/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["api/**/*.ts", "shared/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src"]
 }

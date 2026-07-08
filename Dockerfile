@@ -24,4 +24,4 @@ RUN mkdir -p /app/api/data/uploads
 
 EXPOSE 3001
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/api/server.js"]

@@ -14,3 +14,4 @@ services:
       - NODE_ENV=production
       - PUBLIC_DIR=/app/public
       - UPLOADS_DIR=/app/api/data/uploads
+      - DB_PATH=/app/api/data/console.db

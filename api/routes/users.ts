@@ -45,7 +45,7 @@ export function recordUserLogin(email: string): void {
  * 获取用户列表
  */
 router.get('/users', (req: Request, res: Response) => {
-  const authUser = (req as AuthedRequest).authUser;
+  const authUser = (req as unknown as AuthedRequest).authUser;
   if (!authUser || !authUser.isAdmin) {
     res.status(403).json({ success: false, error: '仅管理员可访问' });
     return;
@@ -124,7 +124,7 @@ router.get('/users', (req: Request, res: Response) => {
  * 封禁用户
  */
 router.post('/users/:email/ban', (req: Request, res: Response) => {
-  const authUser = (req as AuthedRequest).authUser;
+  const authUser = (req as unknown as AuthedRequest).authUser;
   if (!authUser || !authUser.isAdmin) {
     res.status(403).json({ success: false, error: '仅管理员可操作' });
     return;
@@ -163,7 +163,7 @@ router.post('/users/:email/ban', (req: Request, res: Response) => {
  * 解封用户
  */
 router.post('/users/:email/unban', (req: Request, res: Response) => {
-  const authUser = (req as AuthedRequest).authUser;
+  const authUser = (req as unknown as AuthedRequest).authUser;
   if (!authUser || !authUser.isAdmin) {
     res.status(403).json({ success: false, error: '仅管理员可操作' });
     return;
@@ -198,7 +198,7 @@ router.post('/users/:email/unban', (req: Request, res: Response) => {
  * 获取用户统计
  */
 router.get('/users/stats', (req: Request, res: Response) => {
-  const authUser = (req as AuthedRequest).authUser;
+  const authUser = (req as unknown as AuthedRequest).authUser;
   if (!authUser || !authUser.isAdmin) {
     res.status(403).json({ success: false, error: '仅管理员可访问' });
     return;

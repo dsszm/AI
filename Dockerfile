@@ -14,9 +14,9 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server-dist ./dist
+COPY --from=builder /app/dist ./public
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/api ./api
 COPY --from=builder /app/package.json ./package.json
 COPY .env ./
 

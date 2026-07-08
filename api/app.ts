@@ -26,7 +26,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'api/data/uploads');
+app.use('/uploads', express.static(uploadsDir));
+
+const publicDir = process.env.PUBLIC_DIR || path.join(process.cwd(), 'public');
+app.use(express.static(publicDir));
 
 /**
  * 初始化数据库(首次启动时建表 + 种子数据)
@@ -101,6 +105,17 @@ app.use('/api', requireAuth, categoriesRoutes);
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('API 错误:', error);
   res.status(500).json({ success: false, error: '服务器内部错误' });
+});
+
+/**
+ * SPA 前端路由支持：非 API 请求返回 index.html
+ */
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
 /**

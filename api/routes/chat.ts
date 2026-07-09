@@ -2,6 +2,7 @@
  * 对话路由:统一 AI 调用代理(SSE 流式)
  */
 import { Router, type Request, type Response } from 'express';
+import { randomUUID } from 'crypto';
 import { getApiKey } from '../services/keyService.js';
 import { checkRateLimit, recordAccess } from '../services/rateLimiter.js';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../services/sessionService.js';
 import { streamChat } from '../providers/chatProvider.js';
 import { getDb } from '../db/index.js';
+import { logUsage } from '../services/usageService.js';
 import type { AuthedRequest } from '../services/authService.js';
 import type { ChatRequest, ModelId } from '../../shared/types.js';
 
@@ -19,6 +21,8 @@ const router = Router();
 
 router.post('/chat', async (req: Request, res: Response) => {
   const { model, messages, sessionId } = req.body as ChatRequest;
+  const authUser = (req as unknown as AuthedRequest).authUser;
+  const userEmail = authUser?.email || 'anonymous';
 
   if (!model || !messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({ success: false, error: '参数缺失:model 与 messages 必填' });
@@ -96,6 +100,8 @@ router.post('/chat', async (req: Request, res: Response) => {
           if (assistantContent) {
             saveMessage(sid, 'assistant', assistantContent, model);
           }
+          const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+          logUsage(userEmail, 'chat', model, lastUser?.content || '');
           writeSSE('done', { sessionId: sid });
           res.end();
         },
@@ -144,6 +150,8 @@ router.get('/chat/sessions', (req: Request, res: Response) => {
  */
 router.post('/chat/demo', async (req: Request, res: Response) => {
   const { messages } = req.body as ChatRequest;
+  const authUser = (req as unknown as AuthedRequest).authUser;
+  const userEmail = authUser?.email || 'anonymous';
   if (!messages || messages.length === 0) {
     res.status(400).json({ success: false, error: '参数缺失' });
     return;
@@ -177,6 +185,7 @@ router.post('/chat/demo', async (req: Request, res: Response) => {
   }
 
   saveMessage(sid, 'assistant', reply, 'qwen');
+  logUsage(userEmail, 'chat', 'qwen', userText);
   writeSSE('done', { sessionId: sid });
   res.end();
 });

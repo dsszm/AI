@@ -101,6 +101,17 @@ function initSchema(database: Database.Database) {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned);
+
+    CREATE TABLE IF NOT EXISTS usage_log (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('chat','image_gen')),
+      model TEXT NOT NULL,
+      prompt_preview TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_email ON usage_log(user_email);
+    CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_log(created_at);
   `);
 }
 

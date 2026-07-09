@@ -8,7 +8,9 @@ import { Router, type Request, type Response } from 'express';
 import { generateImage } from '../services/imageGenService.js';
 import { getDb } from '../db/index.js';
 import { sendImageEmail } from '../services/mailService.js';
+import { logUsage } from '../services/usageService.js';
 import { randomUUID } from 'crypto';
+import type { AuthedRequest } from '../services/authService.js';
 import type { ModelId } from '../../shared/types.js';
 
 const router = Router();
@@ -30,6 +32,8 @@ router.post('/image-gen', async (req: Request, res: Response) => {
     referenceImage?: string;
     referenceStrength?: number;
   };
+  const authUser = (req as unknown as AuthedRequest).authUser;
+  const userEmail = authUser?.email || 'anonymous';
 
   if (!prompt || !prompt.trim()) {
     res.status(400).json({ success: false, error: '提示词必填' });
@@ -59,6 +63,8 @@ router.post('/image-gen', async (req: Request, res: Response) => {
         'INSERT INTO gallery_item (id, type, url, thumbnail, title, category_id) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(galleryId, 'image', result.url, result.url, safeTitle, categoryId || null);
     }
+
+    logUsage(userEmail, 'image_gen', model, prompt.trim());
 
     res.json({
       success: true,

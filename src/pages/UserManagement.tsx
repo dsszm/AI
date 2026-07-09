@@ -11,6 +11,10 @@ import {
   ArrowLeft,
   RefreshCw,
   Ban,
+  BarChart3,
+  MessageSquare,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 
 interface User {
@@ -40,6 +44,22 @@ interface Pagination {
   totalPages: number;
 }
 
+interface UsageStat {
+  user_email: string;
+  chat_count: number;
+  image_count: number;
+  total_count: number;
+  last_used: string;
+}
+
+interface UsageDetail {
+  id: string;
+  type: 'chat' | 'image_gen';
+  model: string;
+  prompt_preview: string;
+  created_at: string;
+}
+
 export default function UserManagement() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
@@ -52,9 +72,13 @@ export default function UserManagement() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [banModal, setBanModal] = useState<{ email: string; nickname: string } | null>(null);
   const [banReason, setBanReason] = useState('');
+  const [usageStats, setUsageStats] = useState<Record<string, UsageStat>>({});
+  const [usageDetail, setUsageDetail] = useState<{ email: string; nickname: string; records: UsageDetail[] } | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchUsageStats();
   }, []);
 
   useEffect(() => {
@@ -73,6 +97,43 @@ export default function UserManagement() {
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  const fetchUsageStats = async () => {
+    try {
+      const token = localStorage.getItem('console_auth_token');
+      const res = await fetch('/api/users/usage', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        const map: Record<string, UsageStat> = {};
+        for (const item of data.data) {
+          map[item.user_email] = item;
+        }
+        setUsageStats(map);
+      }
+    } catch (error) {
+      console.error('Failed to fetch usage stats:', error);
+    }
+  };
+
+  const fetchUsageDetail = async (email: string, nickname: string) => {
+    setUsageLoading(true);
+    try {
+      const token = localStorage.getItem('console_auth_token');
+      const res = await fetch(`/api/users/${encodeURIComponent(email)}/usage?limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsageDetail({ email, nickname, records: data.data });
+      }
+    } catch (error) {
+      console.error('Failed to fetch usage detail:', error);
+    } finally {
+      setUsageLoading(false);
     }
   };
 
@@ -190,7 +251,7 @@ export default function UserManagement() {
             </div>
           </div>
           <button
-            onClick={() => { fetchUsers(); fetchStats(); }}
+            onClick={() => { fetchUsers(); fetchStats(); fetchUsageStats(); }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
@@ -286,22 +347,22 @@ export default function UserManagement() {
                 <tr className="border-b border-white/10">
                   <th className="text-left p-4 text-gray-400 font-medium">用户</th>
                   <th className="text-left p-4 text-gray-400 font-medium">状态</th>
+                  <th className="text-left p-4 text-gray-400 font-medium">AI使用量</th>
                   <th className="text-left p-4 text-gray-400 font-medium">登录次数</th>
                   <th className="text-left p-4 text-gray-400 font-medium">最后登录</th>
-                  <th className="text-left p-4 text-gray-400 font-medium">注册时间</th>
                   <th className="text-right p-4 text-gray-400 font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
                       加载中...
                     </td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
                       暂无用户数据
                     </td>
                   </tr>
@@ -343,6 +404,30 @@ export default function UserManagement() {
                             正常
                           </span>
                         )}
+                      </td>
+                      <td className="p-4">
+                        {(() => {
+                          const u = usageStats[user.email];
+                          if (!u || u.total_count === 0) {
+                            return <span className="text-gray-500 text-sm">无记录</span>;
+                          }
+                          return (
+                            <button
+                              onClick={() => fetchUsageDetail(user.email, user.nickname)}
+                              className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                              <span className="flex items-center gap-1 text-blue-400 text-sm">
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                {u.chat_count}
+                              </span>
+                              <span className="flex items-center gap-1 text-purple-400 text-sm">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                {u.image_count}
+                              </span>
+                              <span className="text-gray-400 text-xs">共{u.total_count}次</span>
+                            </button>
+                          );
+                        })()}
                       </td>
                       <td className="p-4 text-gray-300">{user.loginCount} 次</td>
                       <td className="p-4 text-gray-400 text-sm">{formatDate(user.lastLoginAt)}</td>
@@ -399,6 +484,66 @@ export default function UserManagement() {
           </div>
         )}
       </div>
+
+      {/* Usage Detail Modal */}
+      {usageDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl w-full max-w-2xl border border-white/10 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-5 h-5 text-blue-400" />
+                <div>
+                  <h3 className="text-lg font-bold">{usageDetail.nickname} - AI使用明细</h3>
+                  <p className="text-gray-400 text-xs">{usageDetail.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setUsageDetail(null)}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 flex-1">
+              {usageLoading ? (
+                <div className="text-center py-12 text-gray-400">加载中...</div>
+              ) : usageDetail.records.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">暂无使用记录</div>
+              ) : (
+                <div className="space-y-2">
+                  {usageDetail.records.map((r) => (
+                    <div key={r.id} className="flex items-start gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                      <div className={`p-1.5 rounded-lg shrink-0 ${r.type === 'chat' ? 'bg-blue-500/20' : 'bg-purple-500/20'}`}>
+                        {r.type === 'chat' ? (
+                          <MessageSquare className="w-4 h-4 text-blue-400" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 text-purple-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium">
+                            {r.type === 'chat' ? '对话' : '图像生成'}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-white/10 text-gray-400">
+                            {r.model}
+                          </span>
+                          <span className="text-gray-500 text-xs">
+                            {new Date(r.created_at).toLocaleString('zh-CN')}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-sm truncate">
+                          {r.prompt_preview || '(空)'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ban Modal */}
       {banModal && (

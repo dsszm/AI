@@ -116,19 +116,18 @@ function initSchema(database: Database.Database) {
 }
 
 function seedData(database: Database.Database) {
-  // 默认分类
   const hasDefault = database.prepare('SELECT 1 FROM category WHERE id = ?').get('default');
   if (!hasDefault) {
-    database.prepare('INSERT INTO category (id, name) VALUES (?, ?)').run('default', '默认分类');
+    database.prepare('INSERT INTO category (id, name) VALUES (?, ?, CURRENT_TIMESTAMP)').run('default', '默认分类');
   }
 
-  // 演示用相册数据(模拟阿里云点播内容,实际应从 VOD 服务获取)
-  const count = database.prepare('SELECT COUNT(*) as c FROM gallery_item').get() as { c: number };
-  if (count.c === 0) {
+  const demoIds = ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8'];
+  const existingDemo = database.prepare('SELECT id FROM gallery_item WHERE id IN (?, ?, ?, ?, ?, ?, ?, ?)').get(...demoIds);
+  if (!existingDemo) {
     const stmt = database.prepare(
       'INSERT INTO gallery_item (id, type, url, thumbnail, title, category_id) VALUES (?, ?, ?, ?, ?, ?)'
     );
-    const samples: Array<{ id: string; type: 'image' | 'video'; title: string; category: string }> = [
+    const samples: Array<{ id: string; type: 'image'; title: string; category: string }> = [
       { id: 'g1', type: 'image', title: '城市夜景', category: 'default' },
       { id: 'g2', type: 'image', title: '山川风光', category: 'default' },
       { id: 'g3', type: 'image', title: '科技图示', category: 'default' },
@@ -137,8 +136,6 @@ function seedData(database: Database.Database) {
       { id: 'g6', type: 'image', title: '自然纹理', category: 'default' },
       { id: 'g7', type: 'image', title: '抽象艺术', category: 'default' },
       { id: 'g8', type: 'image', title: '产品样图', category: 'default' },
-      { id: 'v1', type: 'video', title: '产品演示', category: 'default' },
-      { id: 'v2', type: 'video', title: '操作教程', category: 'default' },
     ];
     for (const s of samples) {
       const seed = encodeURIComponent(s.title);

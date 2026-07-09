@@ -112,6 +112,15 @@ export const api = {
       body: JSON.stringify(params),
     }),
   getImageGenModels: () => request<string[]>('/image-gen/models'),
+
+  // 公开相册（无需登录）
+  getPublicGallery: (params?: { category?: string; type?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set('category', params.category);
+    if (params?.type) qs.set('type', params.type);
+    return request<GalleryItem[]>(`/public/gallery${qs.toString() ? '?' + qs : ''}`);
+  },
+  getPublicCategories: () => request<Category[]>('/public/categories'),
   sendImageEmail: (imageUrl: string, email: string, prompt?: string) =>
     request('/image-gen/send-email', {
       method: 'POST',

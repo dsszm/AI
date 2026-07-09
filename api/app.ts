@@ -94,6 +94,39 @@ app.get('/download', (_req: Request, res: Response) => {
 app.use('/api', authRoutes);
 
 /**
+ * 公开相册接口（无需登录，只读）
+ */
+app.get('/api/public/gallery', (req: Request, res: Response) => {
+  const { category, type } = req.query as { category?: string; type?: string };
+  const db = getDb();
+
+  let sql = 'SELECT id, type, url, thumbnail, title, category_id as categoryId FROM gallery_item WHERE 1=1';
+  const params: string[] = [];
+  if (category) {
+    sql += ' AND category_id = ?';
+    params.push(category);
+  }
+  if (type && (type === 'image' || type === 'video')) {
+    sql += ' AND type = ?';
+    params.push(type);
+  }
+  sql += ' ORDER BY created_at DESC';
+
+  const rows = db.prepare(sql).all(...params);
+  res.json({ success: true, data: rows });
+});
+
+app.get('/api/public/categories', (_req: Request, res: Response) => {
+  const db = getDb();
+  const rows = db.prepare(
+    `SELECT c.id, c.name, COUNT(g.id) as count
+     FROM category c LEFT JOIN gallery_item g ON g.category_id = c.id
+     GROUP BY c.id ORDER BY c.created_at DESC`
+  ).all();
+  res.json({ success: true, data: rows });
+});
+
+/**
  * 受保护的业务路由(需要登录)
  */
 app.use('/api', requireAuth, chatRoutes);

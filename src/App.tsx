@@ -5,6 +5,7 @@ import Home from '@/pages/Home';
 import Settings from '@/pages/Settings';
 import Gallery from '@/pages/Gallery';
 import GalleryCategories from '@/pages/GalleryCategories';
+import PublicGallery from '@/pages/PublicGallery';
 import Help from '@/pages/Help';
 import Login from '@/pages/Login';
 import AdminDashboard from '@/pages/AdminDashboard';
@@ -71,6 +72,7 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/explore" element={<PublicGallery />} />
         <Route
           path="/*"
           element={

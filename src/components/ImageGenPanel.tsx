@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Sparkles, X, Loader2, Wand2, ImagePlus, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, X, Loader2, Wand2, ImagePlus, Mail, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
+import type { GalleryItem } from '../../shared/types';
 
 export default function ImageGenPanel() {
   const [open, setOpen] = useState(false);
@@ -11,6 +12,11 @@ export default function ImageGenPanel() {
   const [saveToGallery, setSaveToGallery] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [referenceImage, setReferenceImage] = useState<GalleryItem | null>(null);
+  const [referenceStrength, setReferenceStrength] = useState(0.6);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [loadingGallery, setLoadingGallery] = useState(false);
   const { currentModel, sendGenImageMessage } = useChatStore();
 
   const sizes = [
@@ -18,6 +24,24 @@ export default function ImageGenPanel() {
     { value: '768x1024', label: '3:4 竖图' },
     { value: '1024x768', label: '4:3 横图' },
   ];
+
+  useEffect(() => {
+    if (showGalleryPicker) {
+      loadGallery();
+    }
+  }, [showGalleryPicker]);
+
+  const loadGallery = async () => {
+    setLoadingGallery(true);
+    try {
+      const items = await api.getGallery({ type: 'image' });
+      setGalleryItems(items);
+    } catch {
+      // 忽略错误
+    } finally {
+      setLoadingGallery(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim() || generating) return;
@@ -31,10 +55,13 @@ export default function ImageGenPanel() {
         size,
         saveToGallery,
         title: prompt.trim().slice(0, 30),
+        referenceImage: referenceImage?.url,
+        referenceStrength,
       });
 
       sendGenImageMessage(prompt.trim(), result.url, saveToGallery);
       setPrompt('');
+      setReferenceImage(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '生成失败');
     } finally {
@@ -47,6 +74,15 @@ export default function ImageGenPanel() {
       e.preventDefault();
       handleGenerate();
     }
+  };
+
+  const selectReference = (item: GalleryItem) => {
+    setReferenceImage(item);
+    setShowGalleryPicker(false);
+  };
+
+  const clearReference = () => {
+    setReferenceImage(null);
   };
 
   return (
@@ -69,6 +105,38 @@ export default function ImageGenPanel() {
               <span className="text-[10px] text-slate-500">使用 {currentModel} 模型生成</span>
             </div>
 
+            {referenceImage && (
+              <div className="flex items-center gap-2 mb-2 p-2 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+                <img
+                  src={referenceImage.url}
+                  alt="参考图"
+                  className="w-10 h-10 object-cover rounded-lg shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-white truncate">参考图：{referenceImage.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-slate-500">相似度</span>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1"
+                      step="0.1"
+                      value={referenceStrength}
+                      onChange={(e) => setReferenceStrength(parseFloat(e.target.value))}
+                      className="flex-1 accent-brand-accent h-1"
+                    />
+                    <span className="text-[10px] text-slate-400 w-8 text-right">{Math.round(referenceStrength * 100)}%</span>
+                  </div>
+                </div>
+                <button
+                  onClick={clearReference}
+                  className="p-1 text-slate-500 hover:text-white transition-colors shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-2 mb-2">
               <textarea
                 value={prompt}
@@ -79,14 +147,24 @@ export default function ImageGenPanel() {
                 className="flex-1 resize-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-accent/50 scroll-thin"
                 disabled={generating}
               />
-              <button
-                onClick={handleGenerate}
-                disabled={!prompt.trim() || generating}
-                className="btn-primary shrink-0 !px-4 self-stretch flex items-center gap-1"
-              >
-                {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                <span className="text-xs">{generating ? '生成中' : '生成'}</span>
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setShowGalleryPicker(true)}
+                  className="btn-secondary !px-3 flex items-center gap-1"
+                  title="从相册选择参考图"
+                >
+                  <ImageIcon size={14} />
+                  <span className="text-xs">参考图</span>
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={!prompt.trim() || generating}
+                  className="btn-primary !px-4 flex-1 flex items-center gap-1"
+                >
+                  {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  <span className="text-xs">{generating ? '生成中' : '生成'}</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
@@ -123,6 +201,55 @@ export default function ImageGenPanel() {
           </div>
         )}
       </div>
+
+      {showGalleryPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a1d24] rounded-2xl p-4 w-full max-w-2xl max-h-[80vh] flex flex-col border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-white">选择参考图片</h3>
+              <button
+                onClick={() => setShowGalleryPicker(false)}
+                className="p-1 text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto scroll-thin">
+              {loadingGallery ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 size={20} className="animate-spin text-slate-500" />
+                </div>
+              ) : galleryItems.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs">
+                  相册里还没有图片
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {galleryItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => selectReference(item)}
+                      className="aspect-square rounded-lg overflow-hidden border border-white/[0.08] hover:border-brand-accent/50 transition-colors group relative"
+                    >
+                      <img
+                        src={item.url}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-end">
+                        <p className="w-full px-1.5 py-1 text-[10px] text-white truncate bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                          {item.title}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export interface GenImageOptions {
   model: ModelId;
   prompt: string;
   size?: '1024x1024' | '768x1024' | '1024x768' | '512x512';
+  referenceImageUrl?: string;
+  referenceStrength?: number;
 }
 
 export interface GenImageResult {
@@ -33,9 +35,14 @@ export async function generateImage(opts: GenImageOptions): Promise<GenImageResu
   let imageBuffer: Buffer;
   let fileName: string;
 
+  let refImageBase64: string | undefined;
+  if (opts.referenceImageUrl) {
+    refImageBase64 = loadImageAsBase64(opts.referenceImageUrl);
+  }
+
   switch (opts.model) {
     case 'qwen':
-      imageBuffer = await genQwenWanxiang(apiKey, opts.prompt, size);
+      imageBuffer = await genQwenWanxiang(apiKey, opts.prompt, size, refImageBase64, opts.referenceStrength);
       break;
     case 'openai':
       imageBuffer = await genOpenAIDalle(apiKey, opts.prompt, size);
@@ -60,7 +67,13 @@ export async function generateImage(opts: GenImageOptions): Promise<GenImageResu
   };
 }
 
-async function genQwenWanxiang(apiKey: string, prompt: string, size: string): Promise<Buffer> {
+async function genQwenWanxiang(
+  apiKey: string,
+  prompt: string,
+  size: string,
+  refImageBase64?: string,
+  refStrength = 0.6
+): Promise<Buffer> {
   const sizeMap: Record<string, string> = {
     '1024x1024': '1024*1024',
     '768x1024': '768*1024',
@@ -68,7 +81,21 @@ async function genQwenWanxiang(apiKey: string, prompt: string, size: string): Pr
     '512x512': '512*512',
   };
 
-  const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis', {
+  const model = refImageBase64 ? 'wanx2.1-t2i-turbo' : 'wanx2.1-t2i-turbo';
+  const input: Record<string, unknown> = { prompt };
+  if (refImageBase64) {
+    input.reference_image = refImageBase64;
+  }
+
+  const parameters: Record<string, unknown> = {
+    size: sizeMap[size] || '1024*1024',
+    n: 1,
+  };
+  if (refImageBase64) {
+    parameters.ref_prompt_weight = refStrength;
+  }
+
+  const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -76,12 +103,9 @@ async function genQwenWanxiang(apiKey: string, prompt: string, size: string): Pr
       'X-DashScope-Async': 'enable',
     },
     body: JSON.stringify({
-      model: 'wanx2.1-t2i-turbo',
-      input: { prompt },
-      parameters: {
-        size: sizeMap[size] || '1024*1024',
-        n: 1,
-      },
+      model,
+      input,
+      parameters,
     }),
   });
 
@@ -173,4 +197,29 @@ async function downloadImage(url: string): Promise<Buffer> {
   if (!res.ok) throw new Error(`下载图片失败: ${res.status}`);
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+
+function loadImageAsBase64(imageUrl: string): string {
+  if (imageUrl.startsWith('data:')) {
+    return imageUrl;
+  }
+  if (imageUrl.startsWith('/uploads/')) {
+    const fileName = imageUrl.replace('/uploads/', '');
+    const filePath = path.join(UPLOADS_DIR, fileName);
+    if (fs.existsSync(filePath)) {
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+      };
+      const mime = mimeMap[ext] || 'image/jpeg';
+      const data = fs.readFileSync(filePath).toString('base64');
+      return `data:${mime};base64,${data}`;
+    }
+  }
+  throw new Error('参考图片不存在');
 }

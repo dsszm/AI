@@ -20,13 +20,15 @@ router.get('/image-gen/models', (_req: Request, res: Response) => {
 });
 
 router.post('/image-gen', async (req: Request, res: Response) => {
-  const { prompt, model, size, saveToGallery, title, categoryId } = req.body as {
+  const { prompt, model, size, saveToGallery, title, categoryId, referenceImage, referenceStrength } = req.body as {
     prompt: string;
     model: ModelId;
     size?: string;
     saveToGallery?: boolean;
     title?: string;
     categoryId?: string;
+    referenceImage?: string;
+    referenceStrength?: number;
   };
 
   if (!prompt || !prompt.trim()) {
@@ -44,6 +46,8 @@ router.post('/image-gen', async (req: Request, res: Response) => {
       model,
       prompt: prompt.trim(),
       size: (size as '1024x1024') || '1024x1024',
+      referenceImageUrl: referenceImage,
+      referenceStrength: referenceStrength ?? 0.6,
     });
 
     let galleryId: string | undefined;

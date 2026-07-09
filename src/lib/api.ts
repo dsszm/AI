@@ -106,7 +106,7 @@ export const api = {
   deleteCategory: (id: string) =>
     request(`/categories/${id}`, { method: 'DELETE' }),
 
-  generateImage: (params: { model: string; prompt: string; size?: string; saveToGallery?: boolean; title?: string; categoryId?: string }) =>
+  generateImage: (params: { model: string; prompt: string; size?: string; saveToGallery?: boolean; title?: string; categoryId?: string; referenceImage?: string; referenceStrength?: number }) =>
     request<{ url: string; galleryId?: string }>('/image-gen', {
       method: 'POST',
       body: JSON.stringify(params),

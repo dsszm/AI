@@ -12,6 +12,7 @@ import {
 } from '../services/sessionService.js';
 import { streamChat } from '../providers/chatProvider.js';
 import { getDb } from '../db/index.js';
+import type { AuthedRequest } from '../services/authService.js';
 import type { ChatRequest, ModelId } from '../../shared/types.js';
 
 const router = Router();
@@ -115,15 +116,25 @@ router.post('/chat', async (req: Request, res: Response) => {
  * 获取会话历史消息
  */
 router.get('/chat/history/:sessionId', (req: Request, res: Response) => {
+  const authUser = (req as unknown as AuthedRequest).authUser;
+  if (!authUser || !authUser.isAdmin) {
+    res.status(403).json({ success: false, error: '仅管理员可查看历史记录' });
+    return;
+  }
   const { sessionId } = req.params;
   const messages = getMessages(sessionId);
   res.json({ success: true, data: messages });
 });
 
 /**
- * 获取会话列表
+ * 获取会话列表（仅管理员）
  */
-router.get('/chat/sessions', (_req: Request, res: Response) => {
+router.get('/chat/sessions', (req: Request, res: Response) => {
+  const authUser = (req as unknown as AuthedRequest).authUser;
+  if (!authUser || !authUser.isAdmin) {
+    res.status(403).json({ success: false, error: '仅管理员可查看历史记录' });
+    return;
+  }
   const sessions = getSessions();
   res.json({ success: true, data: sessions });
 });

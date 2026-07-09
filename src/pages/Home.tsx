@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, History, Sparkles, MessageSquare, Zap, Image as ImageIcon } from 'lucide-react';
 import { useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 import ModelSelector from '@/components/ModelSelector';
 import ChatMessage from '@/components/ChatMessage';
 import ChatInput from '@/components/ChatInput';
@@ -24,6 +25,9 @@ export default function Home() {
     newChat,
     currentModel,
   } = useChatStore();
+
+  const { user } = useAuthStore();
+  const isAdmin = user?.isAdmin;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -60,13 +64,15 @@ export default function Home() {
               <Plus size={18} />
               <span className="hidden sm:inline text-sm">新对话</span>
             </button>
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className={cn('btn-ghost', showHistory && 'text-brand-accent bg-brand-accent/10')}
-              title="历史记录"
-            >
-              <History size={18} />
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className={cn('btn-ghost', showHistory && 'text-brand-accent bg-brand-accent/10')}
+                title="历史记录"
+              >
+                <History size={18} />
+              </button>
+            )}
           </div>
         </header>
 

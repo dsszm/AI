@@ -9,7 +9,7 @@ export default function ImageGenPanel() {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [size, setSize] = useState<'1024x1024' | '768x1024' | '1024x768'>('1024x1024');
-  const [saveToGallery, setSaveToGallery] = useState(true);
+  const saveToGallery = true;
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [referenceImage, setReferenceImage] = useState<GalleryItem | null>(null);
@@ -185,16 +185,10 @@ export default function ImageGenPanel() {
                 ))}
               </div>
 
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveToGallery}
-                  onChange={(e) => setSaveToGallery(e.target.checked)}
-                  className="w-3.5 h-3.5 accent-brand-accent"
-                />
-                <ImagePlus size={11} className="text-slate-500" />
-                <span className="text-[10px] text-slate-400">自动存相册</span>
-              </label>
+              <div className="flex items-center gap-1.5">
+                <ImagePlus size={11} className="text-brand-accent" />
+                <span className="text-[10px] text-brand-accent">生成后自动保存到相册</span>
+              </div>
             </div>
 
             {error && <p className="mt-2 text-[11px] text-danger">{error}</p>}

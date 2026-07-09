@@ -63,7 +63,7 @@ export default function UserManagement() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('console_auth_token');
       const res = await fetch('/api/users/stats', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -79,7 +79,7 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('console_auth_token');
       const params = new URLSearchParams({
         page: String(page),
         pageSize: '10',
@@ -113,7 +113,7 @@ export default function UserManagement() {
     }
     setActionLoading(email);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('console_auth_token');
       const res = await fetch(`/api/users/${encodeURIComponent(email)}/ban`, {
         method: 'POST',
         headers: {
@@ -144,7 +144,7 @@ export default function UserManagement() {
     
     setActionLoading(email);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('console_auth_token');
       const res = await fetch(`/api/users/${encodeURIComponent(email)}/unban`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

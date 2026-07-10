@@ -16,9 +16,11 @@ import galleryRoutes from './routes/gallery.js';
 import categoriesRoutes from './routes/categories.js';
 import usersRoutes from './routes/users.js';
 import imageGenRoutes from './routes/imageGen.js';
+import monitorRoutes from './routes/monitor.js';
 import { getDb } from './db/index.js';
 import { MODELS } from './config/models.js';
 import { verifyToken, type AuthedRequest } from './services/authService.js';
+import { startBackgroundTasks } from './services/backgroundTaskService.js';
 
 dotenv.config();
 
@@ -42,6 +44,11 @@ try {
 } catch (err) {
   console.error('数据库初始化失败:', err);
 }
+
+/**
+ * 启动后台任务调度器（CPU 利用、定时清理、日志分析等）
+ */
+startBackgroundTasks();
 
 /**
  * 鉴权中间件:解析 Authorization 头,挂载 authUser
@@ -135,6 +142,7 @@ app.use('/api', requireAuth, galleryRoutes);
 app.use('/api', requireAuth, categoriesRoutes);
 app.use('/api', requireAuth, usersRoutes);
 app.use('/api', requireAuth, imageGenRoutes);
+app.use('/api', requireAuth, monitorRoutes);
 
 /**
  * 错误处理中间件

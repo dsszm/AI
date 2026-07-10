@@ -10,6 +10,7 @@ import Help from '@/pages/Help';
 import Login from '@/pages/Login';
 import AdminDashboard from '@/pages/AdminDashboard';
 import UserManagement from '@/pages/UserManagement';
+import SystemMonitor from '@/pages/SystemMonitor';
 import { useAuthStore } from '@/store/authStore';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,7 @@ export default function App() {
                   <Route path="/help" element={<Help />} />
                   <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
                   <Route path="/admin/users" element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+                  <Route path="/admin/monitor" element={<RequireAdmin><SystemMonitor /></RequireAdmin>} />
                 </Routes>
               </Layout>
             </RequireAuth>

@@ -3,11 +3,11 @@
  */
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Crown, 
-  Users, 
-  Images, 
-  Settings, 
+import {
+  Crown,
+  Users,
+  Images,
+  Settings,
   BarChart3,
   Database,
   Server,
@@ -18,7 +18,8 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Cpu,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Category, GalleryItem } from '../../shared/types';
@@ -221,7 +222,7 @@ export default function AdminDashboard() {
               <h2 className="text-sm font-semibold text-white">快速操作</h2>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {[
                 {
                   label: '用户管理',
@@ -246,6 +247,12 @@ export default function AdminDashboard() {
                   icon: Shield,
                   color: 'bg-purple-500/15 text-purple-400 hover:bg-purple-500/20',
                   path: '/settings',
+                },
+                {
+                  label: '系统监控',
+                  icon: Cpu,
+                  color: 'bg-teal-500/15 text-teal-400 hover:bg-teal-500/20',
+                  path: '/admin/monitor',
                 },
               ].map((action) => (
                 <a

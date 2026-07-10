@@ -1,5 +1,5 @@
 /**
- * 图像生成服务（文生图）
+ * 图像生成服务（文生图 + 图生图）
  * 支持通义万相（qwen）、DALL-E（openai）等
  */
 import fs from 'fs';
@@ -17,11 +17,16 @@ export async function generateImage(opts) {
     let fileName;
     let refImageBase64;
     if (opts.referenceImageUrl) {
-        refImageBase64 = loadImageAsBase64(opts.referenceImageUrl);
+        refImageBase64 = await loadImageAsBase64(opts.referenceImageUrl);
     }
     switch (opts.model) {
         case 'qwen':
-            imageBuffer = await genQwenWanxiang(apiKey, opts.prompt, size, refImageBase64, opts.referenceStrength);
+            if (refImageBase64) {
+                imageBuffer = await genQwenImageEdit(apiKey, opts.prompt, refImageBase64);
+            }
+            else {
+                imageBuffer = await genQwenWanxiang(apiKey, opts.prompt, size);
+            }
             break;
         case 'openai':
             imageBuffer = await genOpenAIDalle(apiKey, opts.prompt, size);
@@ -41,26 +46,17 @@ export async function generateImage(opts) {
         fileName,
     };
 }
-async function genQwenWanxiang(apiKey, prompt, size, refImageBase64, refStrength = 0.6) {
+/**
+ * 通义万相 - 文生图
+ */
+async function genQwenWanxiang(apiKey, prompt, size) {
     const sizeMap = {
         '1024x1024': '1024*1024',
         '768x1024': '768*1024',
         '1024x768': '1024*768',
         '512x512': '512*512',
     };
-    const model = refImageBase64 ? 'wanx2.1-t2i-turbo' : 'wanx2.1-t2i-turbo';
-    const input = { prompt };
-    if (refImageBase64) {
-        input.reference_image = refImageBase64;
-    }
-    const parameters = {
-        size: sizeMap[size] || '1024*1024',
-        n: 1,
-    };
-    if (refImageBase64) {
-        parameters.ref_prompt_weight = refStrength;
-    }
-    const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation', {
+    const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis', {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -68,9 +64,12 @@ async function genQwenWanxiang(apiKey, prompt, size, refImageBase64, refStrength
             'X-DashScope-Async': 'enable',
         },
         body: JSON.stringify({
-            model,
-            input,
-            parameters,
+            model: 'wanx2.1-t2i-turbo',
+            input: { prompt },
+            parameters: {
+                size: sizeMap[size] || '1024*1024',
+                n: 1,
+            },
         }),
     });
     if (!res.ok) {
@@ -81,6 +80,42 @@ async function genQwenWanxiang(apiKey, prompt, size, refImageBase64, refStrength
     const taskId = data.output?.task_id;
     if (!taskId) {
         throw new Error(`创建图像任务失败: ${data.message || JSON.stringify(data)}`);
+    }
+    const imageUrl = await pollQwenTask(apiKey, taskId);
+    return await downloadImage(imageUrl);
+}
+/**
+ * 通义万相 - 图像编辑（图生图）
+ * 使用 wanx2.1-imageedit 模型，description_edit 功能
+ */
+async function genQwenImageEdit(apiKey, prompt, baseImageBase64) {
+    const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-DashScope-Async': 'enable',
+        },
+        body: JSON.stringify({
+            model: 'wanx2.1-imageedit',
+            input: {
+                function: 'description_edit',
+                prompt,
+                base_image_url: baseImageBase64,
+            },
+            parameters: {
+                n: 1,
+            },
+        }),
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`通义万相图像编辑请求失败: ${res.status} ${text.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    const taskId = data.output?.task_id;
+    if (!taskId) {
+        throw new Error(`创建图像编辑任务失败: ${data.message || JSON.stringify(data)}`);
     }
     const imageUrl = await pollQwenTask(apiKey, taskId);
     return await downloadImage(imageUrl);
@@ -145,10 +180,16 @@ async function downloadImage(url) {
     const arrayBuffer = await res.arrayBuffer();
     return Buffer.from(arrayBuffer);
 }
-function loadImageAsBase64(imageUrl) {
+/**
+ * 将图片URL转为base64 data URI
+ * 支持: data URI, 本地 /uploads/ 路径, http/https 外部URL
+ */
+async function loadImageAsBase64(imageUrl) {
+    // 已经是 data URI
     if (imageUrl.startsWith('data:')) {
         return imageUrl;
     }
+    // 本地上传图片
     if (imageUrl.startsWith('/uploads/')) {
         const fileName = imageUrl.replace('/uploads/', '');
         const filePath = path.join(UPLOADS_DIR, fileName);
@@ -166,6 +207,13 @@ function loadImageAsBase64(imageUrl) {
             const data = fs.readFileSync(filePath).toString('base64');
             return `data:${mime};base64,${data}`;
         }
+        throw new Error(`参考图片不存在: ${filePath}`);
     }
-    throw new Error('参考图片不存在');
+    // 外部 http/https URL，下载后转 base64
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        const buffer = await downloadImage(imageUrl);
+        const data = buffer.toString('base64');
+        return `data:image/jpeg;base64,${data}`;
+    }
+    throw new Error(`不支持的图片URL格式: ${imageUrl}`);
 }

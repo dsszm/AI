@@ -12,9 +12,11 @@ import galleryRoutes from './routes/gallery.js';
 import categoriesRoutes from './routes/categories.js';
 import usersRoutes from './routes/users.js';
 import imageGenRoutes from './routes/imageGen.js';
+import monitorRoutes from './routes/monitor.js';
 import { getDb } from './db/index.js';
 import { MODELS } from './config/models.js';
 import { verifyToken } from './services/authService.js';
+import { startBackgroundTasks } from './services/backgroundTaskService.js';
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -33,6 +35,10 @@ try {
 catch (err) {
     console.error('数据库初始化失败:', err);
 }
+/**
+ * 启动后台任务调度器（CPU 利用、定时清理、日志分析等）
+ */
+startBackgroundTasks();
 /**
  * 鉴权中间件:解析 Authorization 头,挂载 authUser
  * 不强制登录(允许匿名访问公开接口),由具体路由决定是否需要
@@ -81,6 +87,33 @@ app.get('/download', (_req, res) => {
 });
 app.use('/api', authRoutes);
 /**
+ * 公开相册接口（无需登录，只读）
+ */
+app.get('/api/public/gallery', (req, res) => {
+    const { category, type } = req.query;
+    const db = getDb();
+    let sql = 'SELECT id, type, url, thumbnail, title, title_color as titleColor, title_style as titleStyle, category_id as categoryId FROM gallery_item WHERE 1=1';
+    const params = [];
+    if (category) {
+        sql += ' AND category_id = ?';
+        params.push(category);
+    }
+    if (type && (type === 'image' || type === 'video')) {
+        sql += ' AND type = ?';
+        params.push(type);
+    }
+    sql += ' ORDER BY created_at DESC';
+    const rows = db.prepare(sql).all(...params);
+    res.json({ success: true, data: rows });
+});
+app.get('/api/public/categories', (_req, res) => {
+    const db = getDb();
+    const rows = db.prepare(`SELECT c.id, c.name, COUNT(g.id) as count
+     FROM category c LEFT JOIN gallery_item g ON g.category_id = c.id
+     GROUP BY c.id ORDER BY c.created_at DESC`).all();
+    res.json({ success: true, data: rows });
+});
+/**
  * 受保护的业务路由(需要登录)
  */
 app.use('/api', requireAuth, chatRoutes);
@@ -89,6 +122,7 @@ app.use('/api', requireAuth, galleryRoutes);
 app.use('/api', requireAuth, categoriesRoutes);
 app.use('/api', requireAuth, usersRoutes);
 app.use('/api', requireAuth, imageGenRoutes);
+app.use('/api', requireAuth, monitorRoutes);
 /**
  * 错误处理中间件
  */

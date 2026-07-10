@@ -92,6 +92,16 @@ export const api = {
   },
   deleteGalleryItem: (id: string) =>
     request(`/gallery/${id}`, { method: 'DELETE' }),
+  updateGalleryItem: (id: string, data: { title?: string; titleColor?: string | null; titleStyle?: string | null; categoryId?: string | null }) =>
+    request<GalleryItem>(`/gallery/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  batchGallery: (params: { ids: string[]; action: 'delete' | 'category' | 'style'; categoryId?: string; titleColor?: string | null; titleStyle?: string | null }) =>
+    request<{ deleted?: number; updated?: number }>('/gallery/batch', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
   assignCategory: (id: string, categoryId: string) =>
     request(`/gallery/${id}/category`, {
       method: 'POST',

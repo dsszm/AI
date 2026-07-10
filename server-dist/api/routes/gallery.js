@@ -40,7 +40,7 @@ const upload = multer({
 router.get('/gallery', (req, res) => {
     const { category, type } = req.query;
     const db = getDb();
-    let sql = 'SELECT id, type, url, thumbnail, title, category_id as categoryId FROM gallery_item WHERE 1=1';
+    let sql = 'SELECT id, type, url, thumbnail, title, title_color as titleColor, title_style as titleStyle, category_id as categoryId FROM gallery_item WHERE 1=1';
     const params = [];
     if (category) {
         sql += ' AND category_id = ?';
@@ -59,7 +59,7 @@ router.get('/gallery/:id', (req, res) => {
     const { id } = req.params;
     const db = getDb();
     const row = db
-        .prepare('SELECT id, type, url, thumbnail, title, category_id as categoryId FROM gallery_item WHERE id = ?')
+        .prepare('SELECT id, type, url, thumbnail, title, title_color as titleColor, title_style as titleStyle, category_id as categoryId FROM gallery_item WHERE id = ?')
         .get(id);
     if (!row) {
         res.status(404).json({ success: false, error: '未找到该内容' });
@@ -127,5 +127,91 @@ router.post('/gallery/:id/category', requireAdmin, (req, res) => {
     const db = getDb();
     db.prepare('UPDATE gallery_item SET category_id = ? WHERE id = ?').run(categoryId, id);
     res.json({ success: true });
+});
+// 更新单项（标题、标题颜色、标题样式、分类）
+router.put('/gallery/:id', requireAdmin, (req, res) => {
+    const { id } = req.params;
+    const { title, titleColor, titleStyle, categoryId } = req.body;
+    const db = getDb();
+    const fields = [];
+    const values = [];
+    if (title !== undefined) {
+        fields.push('title = ?');
+        values.push(title);
+    }
+    if (titleColor !== undefined) {
+        fields.push('title_color = ?');
+        values.push(titleColor ?? null);
+    }
+    if (titleStyle !== undefined) {
+        fields.push('title_style = ?');
+        values.push(titleStyle ?? null);
+    }
+    if (categoryId !== undefined) {
+        fields.push('category_id = ?');
+        values.push(categoryId || null);
+    }
+    if (fields.length === 0) {
+        res.status(400).json({ success: false, error: '没有需要更新的字段' });
+        return;
+    }
+    values.push(id);
+    db.prepare(`UPDATE gallery_item SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    const row = db
+        .prepare('SELECT id, type, url, thumbnail, title, title_color as titleColor, title_style as titleStyle, category_id as categoryId FROM gallery_item WHERE id = ?')
+        .get(id);
+    res.json({ success: true, data: row });
+});
+// 批量操作（删除、设置分类、设置标题样式）
+router.post('/gallery/batch', requireAdmin, (req, res) => {
+    const { ids, action, categoryId, titleColor, titleStyle } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ success: false, error: '请选择至少一项' });
+        return;
+    }
+    const db = getDb();
+    const placeholders = ids.map(() => '?').join(',');
+    if (action === 'delete') {
+        // 删除本地上传文件
+        const items = db.prepare(`SELECT url FROM gallery_item WHERE id IN (${placeholders})`).all(...ids);
+        for (const item of items) {
+            if (item.url.startsWith('/uploads/')) {
+                const fileName = item.url.replace('/uploads/', '');
+                fs.unlink(path.join(uploadDir, fileName), () => { });
+            }
+        }
+        db.prepare(`DELETE FROM gallery_item WHERE id IN (${placeholders})`).run(...ids);
+        res.json({ success: true, data: { deleted: ids.length } });
+    }
+    else if (action === 'category') {
+        if (!categoryId) {
+            res.status(400).json({ success: false, error: '请选择分类' });
+            return;
+        }
+        db.prepare(`UPDATE gallery_item SET category_id = ? WHERE id IN (${placeholders})`).run(categoryId, ...ids);
+        res.json({ success: true, data: { updated: ids.length } });
+    }
+    else if (action === 'style') {
+        const fields = [];
+        const values = [];
+        if (titleColor !== undefined) {
+            fields.push('title_color = ?');
+            values.push(titleColor ?? null);
+        }
+        if (titleStyle !== undefined) {
+            fields.push('title_style = ?');
+            values.push(titleStyle ?? null);
+        }
+        if (fields.length === 0) {
+            res.status(400).json({ success: false, error: '没有需要更新的字段' });
+            return;
+        }
+        values.push(...ids);
+        db.prepare(`UPDATE gallery_item SET ${fields.join(', ')} WHERE id IN (${placeholders})`).run(...values);
+        res.json({ success: true, data: { updated: ids.length } });
+    }
+    else {
+        res.status(400).json({ success: false, error: '不支持的操作' });
+    }
 });
 export default router;

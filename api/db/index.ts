@@ -46,6 +46,8 @@ function initSchema(database: Database.Database) {
       url TEXT NOT NULL,
       thumbnail TEXT NOT NULL,
       title TEXT,
+      title_color TEXT,
+      title_style TEXT,
       category_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL
@@ -113,6 +115,16 @@ function initSchema(database: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_usage_email ON usage_log(user_email);
     CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_log(created_at);
   `);
+
+  // Migration: 为已有的 gallery_item 表添加标题样式字段
+  const cols = database.prepare("PRAGMA table_info(gallery_item)").all() as Array<{ name: string }>;
+  const colNames = cols.map((c) => c.name);
+  if (!colNames.includes('title_color')) {
+    database.exec('ALTER TABLE gallery_item ADD COLUMN title_color TEXT');
+  }
+  if (!colNames.includes('title_style')) {
+    database.exec('ALTER TABLE gallery_item ADD COLUMN title_style TEXT');
+  }
 }
 
 function seedData(database: Database.Database) {

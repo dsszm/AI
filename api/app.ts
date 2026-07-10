@@ -107,7 +107,7 @@ app.get('/api/public/gallery', (req: Request, res: Response) => {
   const { category, type } = req.query as { category?: string; type?: string };
   const db = getDb();
 
-  let sql = 'SELECT id, type, url, thumbnail, title, category_id as categoryId FROM gallery_item WHERE 1=1';
+  let sql = 'SELECT id, type, url, thumbnail, title, title_color as titleColor, title_style as titleStyle, category_id as categoryId FROM gallery_item WHERE 1=1';
   const params: string[] = [];
   if (category) {
     sql += ' AND category_id = ?';

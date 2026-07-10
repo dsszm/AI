@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { generateImage } from '../services/imageGenService.js';
 import { getDb } from '../db/index.js';
 import { sendImageEmail } from '../services/mailService.js';
+import { logUsage } from '../services/usageService.js';
 import { randomUUID } from 'crypto';
 const router = Router();
 const IMAGE_GEN_MODELS = ['qwen', 'openai'];
@@ -16,6 +17,8 @@ router.get('/image-gen/models', (_req, res) => {
 });
 router.post('/image-gen', async (req, res) => {
     const { prompt, model, size, saveToGallery, title, categoryId, referenceImage, referenceStrength } = req.body;
+    const authUser = req.authUser;
+    const userEmail = authUser?.email || 'anonymous';
     if (!prompt || !prompt.trim()) {
         res.status(400).json({ success: false, error: '提示词必填' });
         return;
@@ -39,6 +42,7 @@ router.post('/image-gen', async (req, res) => {
             const safeTitle = title?.trim() || prompt.slice(0, 30);
             db.prepare('INSERT INTO gallery_item (id, type, url, thumbnail, title, category_id) VALUES (?, ?, ?, ?, ?, ?)').run(galleryId, 'image', result.url, result.url, safeTitle, categoryId || null);
         }
+        logUsage(userEmail, 'image_gen', model, prompt.trim());
         res.json({
             success: true,
             data: {

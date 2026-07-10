@@ -39,6 +39,8 @@ function initSchema(database) {
       url TEXT NOT NULL,
       thumbnail TEXT NOT NULL,
       title TEXT,
+      title_color TEXT,
+      title_style TEXT,
       category_id TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL
@@ -94,34 +96,47 @@ function initSchema(database) {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_users_banned ON users(is_banned);
+
+    CREATE TABLE IF NOT EXISTS usage_log (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('chat','image_gen')),
+      model TEXT NOT NULL,
+      prompt_preview TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_email ON usage_log(user_email);
+    CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_log(created_at);
   `);
+    // Migration: 为已有的 gallery_item 表添加标题样式字段
+    const cols = database.prepare("PRAGMA table_info(gallery_item)").all();
+    const colNames = cols.map((c) => c.name);
+    if (!colNames.includes('title_color')) {
+        database.exec('ALTER TABLE gallery_item ADD COLUMN title_color TEXT');
+    }
+    if (!colNames.includes('title_style')) {
+        database.exec('ALTER TABLE gallery_item ADD COLUMN title_style TEXT');
+    }
 }
 function seedData(database) {
-    // 默认分类
     const hasDefault = database.prepare('SELECT 1 FROM category WHERE id = ?').get('default');
     if (!hasDefault) {
-        database.prepare('INSERT INTO category (id, name) VALUES (?, ?)').run('default', '默认分类');
+        database.prepare('INSERT INTO category (id, name) VALUES (?, ?, CURRENT_TIMESTAMP)').run('default', '默认分类');
     }
-    // 演示用相册数据(模拟阿里云点播内容,实际应从 VOD 服务获取)
-    const count = database.prepare('SELECT COUNT(*) as c FROM gallery_item').get();
-    if (count.c === 0) {
-        const stmt = database.prepare('INSERT INTO gallery_item (id, type, url, thumbnail, title, category_id) VALUES (?, ?, ?, ?, ?, ?)');
-        const samples = [
-            { id: 'g1', type: 'image', title: '城市夜景', category: 'default' },
-            { id: 'g2', type: 'image', title: '山川风光', category: 'default' },
-            { id: 'g3', type: 'image', title: '科技图示', category: 'default' },
-            { id: 'g4', type: 'image', title: '数据图表', category: 'default' },
-            { id: 'g5', type: 'image', title: '建筑结构', category: 'default' },
-            { id: 'g6', type: 'image', title: '自然纹理', category: 'default' },
-            { id: 'g7', type: 'image', title: '抽象艺术', category: 'default' },
-            { id: 'g8', type: 'image', title: '产品样图', category: 'default' },
-            { id: 'v1', type: 'video', title: '产品演示', category: 'default' },
-            { id: 'v2', type: 'video', title: '操作教程', category: 'default' },
-        ];
-        for (const s of samples) {
-            const seed = encodeURIComponent(s.title);
-            stmt.run(s.id, s.type, `https://picsum.photos/seed/${seed}/1200/800`, `https://picsum.photos/seed/${seed}/400/300`, s.title, s.category);
-        }
+    const samples = [
+        { id: 'g1', type: 'image', title: '城市夜景', category: 'default' },
+        { id: 'g2', type: 'image', title: '山川风光', category: 'default' },
+        { id: 'g3', type: 'image', title: '科技图示', category: 'default' },
+        { id: 'g4', type: 'image', title: '数据图表', category: 'default' },
+        { id: 'g5', type: 'image', title: '建筑结构', category: 'default' },
+        { id: 'g6', type: 'image', title: '自然纹理', category: 'default' },
+        { id: 'g7', type: 'image', title: '抽象艺术', category: 'default' },
+        { id: 'g8', type: 'image', title: '产品样图', category: 'default' },
+    ];
+    const insertStmt = database.prepare('INSERT OR IGNORE INTO gallery_item (id, type, url, thumbnail, title, category_id) VALUES (?, ?, ?, ?, ?, ?)');
+    for (const s of samples) {
+        const seed = encodeURIComponent(s.title);
+        insertStmt.run(s.id, s.type, `https://picsum.photos/seed/${seed}/1200/800`, `https://picsum.photos/seed/${seed}/400/300`, s.title, s.category);
     }
 }
 export function closeDb() {

@@ -7,9 +7,12 @@ import { checkRateLimit, recordAccess } from '../services/rateLimiter.js';
 import { createSession, saveMessage, getMessages, getSessions, } from '../services/sessionService.js';
 import { streamChat } from '../providers/chatProvider.js';
 import { getDb } from '../db/index.js';
+import { logUsage } from '../services/usageService.js';
 const router = Router();
 router.post('/chat', async (req, res) => {
     const { model, messages, sessionId } = req.body;
+    const authUser = req.authUser;
+    const userEmail = authUser?.email || 'anonymous';
     if (!model || !messages || !Array.isArray(messages) || messages.length === 0) {
         res.status(400).json({ success: false, error: '参数缺失:model 与 messages 必填' });
         return;
@@ -75,6 +78,8 @@ router.post('/chat', async (req, res) => {
                 if (assistantContent) {
                     saveMessage(sid, 'assistant', assistantContent, model);
                 }
+                const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+                logUsage(userEmail, 'chat', model, lastUser?.content || '');
                 writeSSE('done', { sessionId: sid });
                 res.end();
             },
@@ -94,14 +99,24 @@ router.post('/chat', async (req, res) => {
  * 获取会话历史消息
  */
 router.get('/chat/history/:sessionId', (req, res) => {
+    const authUser = req.authUser;
+    if (!authUser || !authUser.isAdmin) {
+        res.status(403).json({ success: false, error: '仅管理员可查看历史记录' });
+        return;
+    }
     const { sessionId } = req.params;
     const messages = getMessages(sessionId);
     res.json({ success: true, data: messages });
 });
 /**
- * 获取会话列表
+ * 获取会话列表（仅管理员）
  */
-router.get('/chat/sessions', (_req, res) => {
+router.get('/chat/sessions', (req, res) => {
+    const authUser = req.authUser;
+    if (!authUser || !authUser.isAdmin) {
+        res.status(403).json({ success: false, error: '仅管理员可查看历史记录' });
+        return;
+    }
     const sessions = getSessions();
     res.json({ success: true, data: sessions });
 });
@@ -110,6 +125,8 @@ router.get('/chat/sessions', (_req, res) => {
  */
 router.post('/chat/demo', async (req, res) => {
     const { messages } = req.body;
+    const authUser = req.authUser;
+    const userEmail = authUser?.email || 'anonymous';
     if (!messages || messages.length === 0) {
         res.status(400).json({ success: false, error: '参数缺失' });
         return;
@@ -137,6 +154,7 @@ router.post('/chat/demo', async (req, res) => {
         await sleep(20);
     }
     saveMessage(sid, 'assistant', reply, 'qwen');
+    logUsage(userEmail, 'chat', 'qwen', userText);
     writeSSE('done', { sessionId: sid });
     res.end();
 });

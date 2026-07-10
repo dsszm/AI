@@ -41,6 +41,8 @@ export interface GalleryItem {
   url: string;
   thumbnail: string;
   title: string;
+  titleColor?: string;
+  titleStyle?: string;
   categoryId?: string;
 }
 

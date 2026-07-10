@@ -10,6 +10,26 @@ import { cn } from '@/lib/utils';
 
 type FilterType = 'all' | 'image' | 'video';
 
+function parseTitleStyle(styleStr?: string): Set<string> {
+  if (!styleStr) return new Set();
+  return new Set(styleStr.split(',').filter(Boolean));
+}
+
+function titleStyleToCss(styleStr?: string): string {
+  const styles = parseTitleStyle(styleStr);
+  const cssMap: Record<string, string> = {
+    'bold': 'font-bold',
+    'italic': 'italic',
+    'underline': 'underline',
+    'line-through': 'line-through',
+    'text-base': 'text-base',
+    'text-[10px]': 'text-[10px]',
+    'shadow': 'drop-shadow-lg',
+    'center': 'text-center',
+  };
+  return Array.from(styles).map(s => cssMap[s] || '').filter(Boolean).join(' ');
+}
+
 export default function PublicGallery() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -150,7 +170,12 @@ export default function PublicGallery() {
                   </div>
                 )}
                 <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <div className="text-xs text-white font-medium truncate">{item.title}</div>
+                  <div
+                    className={cn('text-xs text-white font-medium truncate', titleStyleToCss(item.titleStyle))}
+                    style={item.titleColor ? { color: item.titleColor } : undefined}
+                  >
+                    {item.title}
+                  </div>
                   <div className="text-[10px] text-white/60 mt-0.5">
                     {item.type === 'video' ? '视频' : '图片'}
                   </div>
@@ -203,7 +228,12 @@ function PreviewModal({ item, onClose }: { item: GalleryItem; onClose: () => voi
           </div>
           <div className="px-5 py-3 border-t border-white/[0.06] flex items-center justify-between">
             <div>
-              <div className="text-sm font-medium text-white">{item.title}</div>
+              <div
+                className={cn('text-sm font-medium text-white', titleStyleToCss(item.titleStyle))}
+                style={item.titleColor ? { color: item.titleColor } : undefined}
+              >
+                {item.title}
+              </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 {item.type === 'video' ? '视频内容' : '图片内容'}
               </div>

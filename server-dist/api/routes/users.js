@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { getDb } from '../db/index.js';
 import { ADMIN_EMAIL, isAdmin } from '../services/authService.js';
+import { getUsageStats, getUserUsage } from '../services/usageService.js';
 const router = Router();
 /**
  * 检查用户是否被封禁
@@ -185,5 +186,31 @@ router.get('/users/stats', (req, res) => {
             newUsers: newUsers.count,
         },
     });
+});
+/**
+ * 获取所有用户 AI 使用量统计（仅管理员）
+ */
+router.get('/users/usage', (req, res) => {
+    const authUser = req.authUser;
+    if (!authUser || !authUser.isAdmin) {
+        res.status(403).json({ success: false, error: '仅管理员可访问' });
+        return;
+    }
+    const stats = getUsageStats();
+    res.json({ success: true, data: stats });
+});
+/**
+ * 获取某用户的使用明细（仅管理员）
+ */
+router.get('/users/:email/usage', (req, res) => {
+    const authUser = req.authUser;
+    if (!authUser || !authUser.isAdmin) {
+        res.status(403).json({ success: false, error: '仅管理员可访问' });
+        return;
+    }
+    const email = req.params.email.toLowerCase().trim();
+    const limit = parseInt(req.query.limit) || 50;
+    const records = getUserUsage(email, limit);
+    res.json({ success: true, data: records });
 });
 export default router;
